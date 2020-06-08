@@ -1,0 +1,265 @@
+#include <stdio.h>
+#include <unistd.h>
+#include <fcntl.h>
+#include "emulator.h"
+#include "sim.h"
+#include "sleep.h"
+#include "loader.h"
+
+//output: L1, L2, L3, L4, L5
+//cycleTime: 0.25sec
+
+/*
+Przykład: 
+: L1 !L1 #                                      <-ustawienie stanu L1
+:#            ->        : L1 !L1 #              <-zapytanie o stan L1
+*/
+
+char stan1 = 1, stan2 = 1, stan3 = 1, stan4 = 1, stan5 = 1;
+//wyjscia
+char nal1, nal2, grz, sil, wir, kier, wyl;
+//pomocnicze
+int tm1, tm2, tm3, p=1, x;
+//wejscia
+char poz, zal;
+
+int main(void) {
+  fcntl(0, F_SETFL, fcntl(0, F_GETFL) | O_NONBLOCK);
+
+  char znak, x, y, stank=1;
+  UART_init(9600);
+
+  while(1) {
+    //User code START
+    zal = aK1; poz = aK2;
+    printf("%d\n", stank);
+    znak = COM_recv();
+    if(znak) {
+      switch(stank) {
+        case 1:
+          if(znak == 'q') p=1;
+          else if(znak=='w') p = 2;
+          else if(znak=='e') p = 3;
+          else if(znak=='r') p = 4;
+          else if(znak=='t') p = 5;
+          else if(znak=='y') p = 6;
+          else if(znak=='u') p = 7;
+        break;
+      }
+    }
+
+    switch(stan1){
+      case 1:
+        if(p==1){
+          p=0; stan1=2;
+        }
+      break;
+      case 2:
+        if(stan2==6){
+          tm1=600; stan1=3;
+        }
+      break;
+      case 3:
+        if(!tm1 || p == 3){
+          tm1=450; stan1=4;
+        }
+      break;
+      case 4:
+        if(!tm1 || p == 4) stan1=5;
+      break;
+      case 5:
+        if(!poz){
+          tm1=150; stan1=6;
+        }
+      break;
+      case 6:
+        if(!tm1 || p == 5){
+          x=3; stan1=7;
+        }
+      break;
+      case 7:
+        if(stan2==11){
+          tm1=400; stan1=8;
+        }
+      break;
+      case 8:
+        if(!tm1 || p == 7){
+          tm1=100; stan1=9;
+        }
+      break;
+      case 9:
+        if(!tm1&&1){
+          stan1=1;
+        }
+      break;
+    }
+    if(tm1)--tm1;
+
+    switch(stan2){
+      case 1: nal1 = 0; nal2 = 0;
+        if(stan1==2) {
+          tm2=50;
+          stan2=2;
+        }
+        else if(stan1==7){
+          tm2=200;
+          stan2=7;
+        }
+      break;
+      case 2: nal1 =1; nal2 = 0;
+        if(p==2) stan2 = 6;
+        else if(!tm2){
+          tm2=10;
+          stan2 = 3;
+        }
+      break;
+      case 3: nal1 = 1; nal2 = 0;
+        if(p==2) stan2 = 6;
+        else if(!tm2){
+          tm2=30;
+          stan2 = 4;
+        }      
+        else if(poz){
+          tm2=100;
+          stan2=5;
+        }
+      break;
+      case 4: nal1=0; nal2=1;
+        if(p==2) stan2=6;
+        else if(poz){
+          tm2=100;
+          stan2=5;
+        }
+        else if(!tm2){
+          tm2=10;
+          stan2=3;
+        }
+      break;
+      case 5: nal1=0; nal2=1;
+        if(p==2 || !tm2) stan2 = 6;
+      break;
+      case 6: nal1=0; nal2 = 0;
+        if(stan1==3) stan2=1;
+      break;
+      case 7: nal1=1; nal2=1;
+        if(!tm2&&poz){
+          tm2=100; //ZMIEIC NA 600
+          stan2=8;
+        }
+        else if(p==6){
+          x=0;
+          stan2=9;
+        }
+      break;
+      case 8: nal1=0; nal2 = 0;
+        if(!tm2) stan2=9;
+        else if(p==6) {
+          x=0;
+          stan2=9;
+        }
+      break;
+      case 9: nal1=0; nal2 = 0;
+        if(!poz){
+          if(x) x=x-1;
+          tm2=150;
+          stan2=10;
+        }
+      break;
+      case 10: nal1=0; nal2 = 0;
+        if(!tm2 && !x) stan2=11;
+        else if(!tm2&&x) {
+          stan2=7;
+          tm2=200;
+        }
+      break;
+      case 11: nal1=0; nal2 = 0;
+        if(stan1==8) stan2=1;
+      break;
+    }
+    if(tm2) --tm2;
+
+    switch(stan3){
+      case 1: grz = 0;
+        if(stan1==3) stan3 = 2;
+      break;
+      case 2: grz = 1;
+        if(stan1!=3) stan3=1;
+      break;
+    }
+
+    switch(stan4){
+      case 1: sil=0; wir=0; kier=0;
+        if(stan1==3||stan2==8){
+          tm3=30; //random
+          stan4=2;
+        }
+        else if(stan1==8) stan4=6;
+      break;
+      case 2: sil=1; wir=0; kier=0;
+        if(stan1==5 || stan2 == 9) stan4 = 1;
+        else if(!tm3) {
+          tm3=30; //random
+          stan4 = 3;
+        }
+      break;
+      case 3: sil=0; wir=0; kier=0;
+        if(stan1==5 || stan2 == 9) stan4 = 1;
+        else if(!tm3) {
+          tm3=30; //random
+          stan4 = 4;
+        }
+      break;
+      case 4: sil=1; wir=0; kier=1;
+        if(stan1==5 || stan2 == 9) stan4 = 1;
+        else if(!tm3) {
+          tm3=30; //random
+          stan4 = 5;
+        }
+      break;
+      case 5: sil=0; wir=0; kier=0;
+        if(stan1==5 || stan2 == 9) stan4 = 1;
+        else if(!tm3) {
+          tm3=30; //random
+          stan4 = 2;
+        }
+      break;
+      case 6: sil=1; wir=1; kier=0;
+        if(stan1==9) stan4 = 1;
+      break;
+    }
+    if(tm3) --tm3;
+
+    switch(stan5){
+      case 1: wyl=0;
+        if(stan1==5||stan1==8) stan5=2;
+        else if(stan2==9) stan5=3;
+      break; 
+      case 2: wyl=1;
+        if(stan1==7 || stan1 == 1) stan5=1;
+      break;
+      case 3: wyl=1;
+        if(stan2==7 || stan2==11 || stan2==1) stan5=1;
+      break;
+    }
+
+
+    L1 = nal1; L2 = nal2; L3 = grz; L4 = sil; L5 = wir; L6 = kier; L7 = wyl;
+    //User code END
+    render(aK1, aK2, L1, L2, L3, L4, L5, L6, L7);
+    printf("P = %d\n", p);
+    printf("stank = %d\n", stank);
+    printf("stan1 = %d\n", stan1);
+    printf("stan2 = %d\n", stan2);
+    printf("stan3 = %d\n", stan3);
+    printf("stan4 = %d\n", stan4);
+    printf("stan5 = %d\n", stan5);
+    printLoader();
+    printf("Incomming: %s\n", output);
+    printf("Sent: %s\n", input);
+    printf("\nSend chars:\n"); 
+    msleep(100);
+    ToggleValues();
+    GetInput();
+  }
+  return 0;
+}
