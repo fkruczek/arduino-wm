@@ -1,0 +1,181 @@
+#include <stdio.h>
+#include <unistd.h>
+#include <fcntl.h>
+#include "emulator.h"
+#include "sim.h"
+#include "sleep.h"
+#include "loader.h"
+
+//input: aK1, aK2, aK3, aK4, aK5545
+//output: L1, L2, L3, L4, L5
+//To toggle input value, type 1-5 on your keyboard
+
+//cycleTime: 0.5sec
+
+char stan1 = 1, stan2 = 1, stan3 = 1, stan4 = 1, stan5 = 1, stan6 = 1;
+char F1, F2, F3, tm2, tm3, tm4, EM1, EM2, EM3;
+char SLP,tm1 = 10;
+char SKJ, FKJ1, FKJ2;
+char ST, AF = 1;
+
+int main(void) {
+  fcntl(0, F_SETFL, fcntl(0, F_GETFL) | O_NONBLOCK);
+  while(1) {
+    // User code START
+    F1 = aK1; F2 = aK2; F3 = aK3; FKJ1 = aK4; FKJ2 = aK5;
+    
+// PODAJNIK
+    switch(stan1) {
+      case 1:
+        SLP = 1;
+        if(!tm1 && 1) stan1 = 2;
+        break;
+      case 2:
+        SLP = 0;
+        if(!F2) stan1 = 3;
+      break;
+      case 3: 
+        SLP = 0;
+        if(F2){
+          tm1=10;
+          stan1 = 1;
+        } 
+        break;
+    }
+    if(tm1) --tm1;
+
+//EM1 NAGRZEWANIE
+    switch(stan2){
+      case 1:
+        EM1=0;
+        if(F1) stan2 = 2;
+      break;
+      case 2:
+        EM1=0;
+        if(!F1) {
+          tm2=3;
+          stan2=3;
+        }
+      break;
+      case 3:
+        EM1=0;
+        if(!tm2 && 1){
+          tm2=20;
+          stan2=4;
+        }
+      break;
+      case 4:
+        EM1=1;
+        if(!tm2 && 1) stan2 = 1;
+      break;
+    }
+    if(tm2) --tm2;
+
+
+    //EM1 KUCIE
+    switch(stan3){
+      case 1:
+        EM2=0;
+        if(F2) stan3 = 2;
+      break;
+      case 2:
+        EM2=0;
+        if(!F2) {
+          tm3=3;
+          stan3=3;
+        }
+      break;
+      case 3:
+        EM2=0;
+        if(!tm3 && 1){
+          tm3=20;
+          stan3=4;
+        }
+      break;
+      case 4:
+        EM2=1;
+        if(!tm3 && 1) stan3 = 1;
+      break;
+    }
+    if(tm3) --tm3;
+
+//EM1 HARTOWANIE
+    switch(stan4){
+      case 1:
+        EM3=0;
+        if(F3) stan4 = 2;
+      break;
+      case 2:
+        EM3=0;
+        if(!F3) {
+          tm4=3;
+          stan4=3;
+        }
+      break;
+      case 3:
+        EM3=0;
+        if(!tm4 && 1){
+          tm4=20;
+          stan4=4;
+        }
+      break;
+      case 4:
+        EM3=1;
+        if(!tm4 && 1) stan4 = 1;
+      break;
+    }
+    if(tm4) --tm4;
+
+  // SK1 KONTROLA JAKOŚCI
+
+    switch(stan5){
+      case 1:
+        SKJ=0;
+        if(FKJ1) stan5 = 2;
+      break;
+      case 2:
+        SKJ=0;
+        if(FKJ1 && FKJ2) stan5=3;
+        else if(!FKJ1) stan5=4;
+      break;
+      case 3:
+        SKJ=0;
+        if(!FKJ2)stan5=1;
+      break;
+      case 4: 
+        SKJ=1;
+        if(FKJ1) stan5=5;
+      break;
+      case 5:
+        SKJ=1;
+        if(FKJ1 && FKJ2) stan5=3;
+        else if(!FKJ1) stan5=4;
+      break;
+    }
+
+
+// SILNIK TASMY
+
+  switch(stan6){
+    case 1:
+      ST=1;
+      if((stan2==4&&F1)||(stan3==4&&F2)||(stan4==4&&F3)) stan6=2;
+    break;
+    case 2:
+      ST=0;
+      if((stan2!=4||!F1)&&(stan3!=4||!F2)&&(stan4!=4 ||!F3)) stan6=1;
+    break;
+  }
+
+    L1 = EM1; L2 = EM2; L3 = EM3; L4 = SLP; L5 = ST; L6 = SKJ; L7 = AF; 
+    //User code END
+
+    render(aK1, aK2, aK3, aK4, aK5, L1, L2, L3, L4, L5, L6, L7);
+    printLoader();
+    printf("%d", stan1);
+    printf("Toggle input (1-5): \n"); 
+    msleep(100);
+    ToggleValues();
+  }
+  return 0;
+}
